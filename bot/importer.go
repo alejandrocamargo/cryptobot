@@ -8,9 +8,9 @@ import (
 
 func GetPrice() Data {
 
-	//response, _ := http.Get("https://api.pro.coinbase.com/products/BTC-USD/ticker")
+	response, _ := http.Get("https://api.pro.coinbase.com/products/BTC-EUR/ticker")
 
-	response, _ := http.Get("https://api-public.sandbox.pro.coinbase.com/products/BTC-USD/ticker")
+	//response, _ := http.Get("https://api-public.sandbox.pro.coinbase.com/products/BTC-USD/ticker")
 
 	responseData, _ := ioutil.ReadAll(response.Body)
 

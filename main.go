@@ -1,3 +1,7 @@
+/*
+scp -r /Users/alejandrocamargo/go/src/bot pi@192.168.1.21:/home/pi/go/src
+*/
+
 package main
 
 import (
@@ -22,12 +26,20 @@ func main() {
 
 	lastPrice := 0.0
 
+	// Initialization block
+	/*	order = bot.GetOrder("30fa8b1d-4850-4743-aa47-16e3710c6a38", client)
+		orderID := order.Id
+		isTrade = true*/
+	//////////////////////////
+
+	orderID := ""
+
 	for true {
 
 		//Get balances
-		balanceUSD := bot.GetBalance(client, "USD")
+		balanceEUR := bot.GetBalance(client, "EUR")
 		balanceBTC := bot.GetBalance(client, "BTC")
-		log.Println("USD$ " + fmt.Sprintf("%f", balanceUSD) + " --- BTC " + fmt.Sprintf("%f", balanceBTC))
+		log.Println("EUR € " + fmt.Sprintf("%f", balanceEUR) + " --- BTC " + fmt.Sprintf("%f", balanceBTC))
 
 		//Get BTC price
 		entry := bot.GetPrice()
@@ -42,12 +54,12 @@ func main() {
 				if entry.Price > lastPrice {
 
 					// Calculate position
-					positionBTC := bot.CalculateBTCPosition(entry.Price, balanceUSD-10)
+					positionBTC := bot.CalculateBTCPosition(entry.Price, balanceEUR-10)
 
 					//Place order limitted
-					order = bot.BuyOrderBTC(entry.Price, positionBTC, client)
+					order = bot.BuyOrderBTC(entry.Price-1, positionBTC, client)
 
-					log.Println(order.Status)
+					orderID = order.Id
 
 					isTrade = true
 				}
@@ -62,21 +74,34 @@ func main() {
 				//Sell!
 				if entry.Price < lastPrice {
 
-					//Place order limitted
-					order = bot.SellOrderBTC(entry.Price, balanceBTC, client)
+					// if current BTC price is bigger than order price, sell at current price
+					if entry.Price > bot.ParseFloat(order.Price) {
+
+						order = bot.SellOrderBTC(entry.Price+1, balanceBTC, client)
+
+						//if current BTC price is lower than order price, sell at order price
+					} else {
+
+						order = bot.SellOrderBTC(bot.ParseFloat(order.Price), balanceBTC, client)
+
+					}
+
+					orderID = order.Id
 
 					isTrade = false
 
 				}
 			}
 
-			// Refresh order
-			order = bot.GetOrder(order.Id, client)
-			log.Println("Order: " + order.Id + " --- Status: " + order.Status + " ---- Seetled? " + fmt.Sprintf("%t", order.Settled))
-
 		}
 
-		time.Sleep(10 * time.Second)
+		// Refresh order
+		order = bot.GetOrder(orderID, client)
+		log.Println("Order " + order.Type + ": " + orderID + " --- Status: " + order.Status + " --- Price: " + order.Price + "€ ---- Seetled? " + fmt.Sprintf("%t", order.Settled))
+
+		lastPrice = entry.Price
+
+		time.Sleep(60 * time.Second)
 
 	}
 
@@ -84,12 +109,9 @@ func main() {
 
 func setUp() *gdax.Client {
 
-	secret := ""
-	key := ""
-	passphrase := ""
-
 	client := gdax.NewClient(secret, key, passphrase)
-	client.BaseURL = "https://api-public.sandbox.pro.coinbase.com"
+	//client.BaseURL = "https://api-public.sandbox.pro.coinbase.com"
+	client.BaseURL = "https://api.pro.coinbase.com"
 
 	return client
 }

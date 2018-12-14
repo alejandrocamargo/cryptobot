@@ -1,0 +1,1 @@
+scp -r /Users/alejandrocamargo/go/src/bot pi@192.168.1.21:/home/pi/go/src

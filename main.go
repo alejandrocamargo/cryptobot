@@ -34,6 +34,8 @@ func main() {
 
 	orderID := ""
 
+	bearCount := 0
+
 	for true {
 
 		//Get balances
@@ -56,8 +58,8 @@ func main() {
 					// Calculate position
 					positionBTC := bot.CalculateBTCPosition(entry.Price, balanceEUR-10)
 
-					//Place order limitted
-					order = bot.BuyOrderBTC(entry.Price-1, positionBTC, client)
+					//Place order limited
+					order = bot.BuyOrderBTC(entry.Price-0.5, positionBTC, client)
 
 					orderID = order.Id
 
@@ -71,25 +73,38 @@ func main() {
 			// Only sell if the buy order has been executed
 			if order.Settled == true {
 
-				//Sell!
+				//Sell if it goes down three times in a row
 				if entry.Price < lastPrice {
 
-					// if current BTC price is bigger than order price, sell at current price
-					if entry.Price > bot.ParseFloat(order.Price) {
+					bearCount++
 
-						order = bot.SellOrderBTC(entry.Price+1, balanceBTC, client)
+					log.Println("BearCount: " + fmt.Sprintf("%d", bearCount))
 
-						//if current BTC price is lower than order price, sell at order price
-					} else {
+					if bearCount == 3 {
 
-						order = bot.SellOrderBTC(bot.ParseFloat(order.Price), balanceBTC, client)
+						// if current BTC price is bigger than order price, sell at current price
+						if entry.Price > bot.ParseFloat(order.Price) {
 
+							order = bot.SellOrderBTC(entry.Price+0.5, balanceBTC, client)
+
+							//if current BTC price is lower than order price, sell at order price
+						} else {
+
+							order = bot.SellOrderBTC(bot.ParseFloat(order.Price), balanceBTC, client)
+
+						}
+
+						orderID = order.Id
+
+						isTrade = false
+
+						bearCount = 0
 					}
 
-					orderID = order.Id
-
-					isTrade = false
-
+				} else if entry.Price == lastPrice {
+					//same price, do nothing
+				} else {
+					bearCount = 0
 				}
 			}
 
@@ -101,7 +116,7 @@ func main() {
 
 		lastPrice = entry.Price
 
-		time.Sleep(60 * time.Second)
+		time.Sleep(10 * time.Second)
 
 	}
 

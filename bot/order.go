@@ -74,3 +74,25 @@ func ParseFloat(value string) float64 {
 
 	return ret
 }
+
+func ListOrders(client *gdax.Client) bool {
+
+	var orders []gdax.Order
+
+	found := false
+
+	cursor := client.ListOrders(gdax.ListOrdersParams{Status: "open", ProductId: "BTC-EUR"})
+
+	for cursor.HasMore {
+
+		cursor.NextPage(&orders)
+
+		for _, o := range orders {
+			log.Println("Order found: " + o.Id)
+			found = true
+		}
+	}
+
+	return found
+
+}

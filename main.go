@@ -1,12 +1,9 @@
-/*
-scp -r /Users/alejandrocamargo/go/src/bot pi@192.168.1.21:/home/pi/go/src
-*/
-
 package main
 
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	bot "bot/bot"
@@ -19,22 +16,31 @@ import (
 func main() {
 
 	var order *gdax.Order
-
 	client := setUp()
-
 	isTrade := false
+	bearCount := 0
 
 	lastPrice := 0.0
-
-	// Initialization block
-	/*	order = bot.GetOrder("30fa8b1d-4850-4743-aa47-16e3710c6a38", client)
-		orderID := order.Id
-		isTrade = true*/
-	//////////////////////////
-
 	orderID := ""
 
-	bearCount := 0
+	if bot.ListOrders(client) {
+		entry := bot.GetPrice()
+		log.Println("1 BTC = " + fmt.Sprintf("%f", entry.Price))
+		log.Println("Waiting 10 seconds to start!")
+		time.Sleep(10 * time.Second)
+	}
+
+	// Check arguments the command itself it's one
+	if len(os.Args) > 1 {
+		lastPrice = bot.ParseFloat(os.Args[1])
+		orderID = os.Args[2]
+		isTrade = true
+		order = bot.GetOrder(orderID, client)
+
+		log.Print("Initialization:  lastPrice --> " + os.Args[1] + " orderID --> " + os.Args[2])
+	} else {
+		log.Print("No initialization block")
+	}
 
 	for true {
 
@@ -73,14 +79,14 @@ func main() {
 			// Only sell if the buy order has been executed
 			if order.Settled == true {
 
-				//Sell if it goes down three times in a row
+				//Sell if it goes down two times in a row
 				if entry.Price < lastPrice {
 
 					bearCount++
 
 					log.Println("BearCount: " + fmt.Sprintf("%d", bearCount))
 
-					if bearCount == 3 {
+					if bearCount == 2 {
 
 						// if current BTC price is bigger than order price, sell at current price
 						if entry.Price > bot.ParseFloat(order.Price) {

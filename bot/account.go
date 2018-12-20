@@ -30,7 +30,7 @@ func GetBalance(client *gdax.Client, currency string) (float64, error) {
 
 	account, err := GetAccount(client, currency)
 
-	if err != nil {
+	if err == nil {
 
 		accountBalance, _ := strconv.ParseFloat(account.Balance, 64)
 

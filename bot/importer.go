@@ -2,7 +2,9 @@ package bot
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -23,6 +25,8 @@ func unMarshall(data []byte) Data {
 	var entry Data
 
 	json.Unmarshal(data, &entry)
+
+	log.Println("1 BTC = " + fmt.Sprintf("%f", entry.Price))
 
 	return entry
 

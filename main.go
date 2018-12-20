@@ -36,10 +36,8 @@ func main() {
 	if len(os.Args) > 1 {
 		lastPrice = bot.ParseFloat(os.Args[1])
 		orderID = os.Args[2]
-		isTrade = true
 
-		order = refreshOrder(order, orderID, client)
-		//order = bot.GetOrder(orderID, client)
+		order, isTrade = refreshOrder(order, orderID, client)
 
 		log.Print("Initialization:  lastPrice --> " + os.Args[1] + " orderID --> " + os.Args[2])
 	} else {
@@ -59,7 +57,6 @@ func main() {
 
 		//Get BTC price
 		entry := bot.GetPrice()
-		log.Println("1 BTC = " + fmt.Sprintf("%f", entry.Price))
 
 		if !isTrade {
 
@@ -124,9 +121,7 @@ func main() {
 
 		}
 
-		order = refreshOrder(order, orderID, client)
-
-		log.Println("Order " + order.Type + ": " + orderID + " --- Status: " + order.Status + " --- Price: " + order.Price + "€ ---- Seetled? " + fmt.Sprintf("%t", order.Settled))
+		order, isTrade = refreshOrder(order, orderID, client)
 
 		lastPrice = entry.Price
 
@@ -164,7 +159,7 @@ func getBalances(client *gdax.Client) (balanceEUR float64, balanceBTC float64, e
 
 }
 
-func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) *gdax.Order {
+func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) (*gdax.Order, bool) {
 
 	// Refresh order
 	orderP, err := bot.GetOrder(orderID, client)
@@ -174,6 +169,8 @@ func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) *gdax.
 		order = orderP
 	}
 
-	return order
+	log.Println("Order " + order.Type + ": " + orderID + " --- Status: " + order.Status + " --- Price: " + order.Price + "€ ---- Seetled? " + fmt.Sprintf("%t", order.Settled))
+
+	return order, !order.Settled
 
 }

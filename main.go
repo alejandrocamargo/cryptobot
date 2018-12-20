@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -23,6 +24,7 @@ func main() {
 	lastPrice := 0.0
 	orderID := ""
 
+	// Look for open order an show warning
 	if bot.ListOrders(client) {
 		entry := bot.GetPrice()
 		log.Println("1 BTC = " + fmt.Sprintf("%f", entry.Price))
@@ -35,7 +37,9 @@ func main() {
 		lastPrice = bot.ParseFloat(os.Args[1])
 		orderID = os.Args[2]
 		isTrade = true
-		order = bot.GetOrder(orderID, client)
+
+		order = refreshOrder(order, orderID, client)
+		//order = bot.GetOrder(orderID, client)
 
 		log.Print("Initialization:  lastPrice --> " + os.Args[1] + " orderID --> " + os.Args[2])
 	} else {
@@ -45,9 +49,13 @@ func main() {
 	for true {
 
 		//Get balances
-		balanceEUR := bot.GetBalance(client, "EUR")
-		balanceBTC := bot.GetBalance(client, "BTC")
-		log.Println("EUR € " + fmt.Sprintf("%f", balanceEUR) + " --- BTC " + fmt.Sprintf("%f", balanceBTC))
+		balanceEUR, balanceBTC, err := getBalances(client)
+
+		if err != nil {
+			log.Fatal(err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
 
 		//Get BTC price
 		entry := bot.GetPrice()
@@ -64,8 +72,8 @@ func main() {
 					// Calculate position
 					positionBTC := bot.CalculateBTCPosition(entry.Price, balanceEUR-10)
 
-					//Place order limited
-					order = bot.BuyOrderBTC(entry.Price-0.5, positionBTC, client)
+					//Place order limited, 5€ cheaper
+					order = bot.BuyOrderBTC(entry.Price-5, positionBTC, client)
 
 					orderID = order.Id
 
@@ -116,13 +124,13 @@ func main() {
 
 		}
 
-		// Refresh order
-		order = bot.GetOrder(orderID, client)
+		order = refreshOrder(order, orderID, client)
+
 		log.Println("Order " + order.Type + ": " + orderID + " --- Status: " + order.Status + " --- Price: " + order.Price + "€ ---- Seetled? " + fmt.Sprintf("%t", order.Settled))
 
 		lastPrice = entry.Price
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(60 * time.Second)
 
 	}
 
@@ -135,4 +143,37 @@ func setUp() *gdax.Client {
 	client.BaseURL = "https://api.pro.coinbase.com"
 
 	return client
+}
+
+func getBalances(client *gdax.Client) (balanceEUR float64, balanceBTC float64, err error) {
+
+	balanceEUR, err1 := bot.GetBalance(client, "EUR")
+	balanceBTC, err2 := bot.GetBalance(client, "BTC")
+
+	if err1 != nil || err2 != nil {
+
+		return 0.0, 0.0, errors.New("Cannot retrieve balances!")
+
+	} else {
+
+		log.Println("EUR € " + fmt.Sprintf("%f", balanceEUR) + " --- BTC " + fmt.Sprintf("%f", balanceBTC))
+
+		return balanceEUR, balanceBTC, nil
+
+	}
+
+}
+
+func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) *gdax.Order {
+
+	// Refresh order
+	orderP, err := bot.GetOrder(orderID, client)
+
+	// re-assign only if no problem
+	if err == nil {
+		order = orderP
+	}
+
+	return order
+
 }

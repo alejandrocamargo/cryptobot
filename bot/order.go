@@ -60,11 +60,15 @@ func SellOrderBTC(price float64, btc float64, client *gdax.Client) *gdax.Order {
 	return &savedOrder
 }
 
-func GetOrder(id string, client *gdax.Client) *gdax.Order {
+func GetOrder(id string, client *gdax.Client) (orderP *gdax.Order, err error) {
 
-	order, _ := client.GetOrder(id)
+	order, err := client.GetOrder(id)
 
-	return &order
+	if err != nil {
+		return
+	}
+
+	return &order, nil
 
 }
 

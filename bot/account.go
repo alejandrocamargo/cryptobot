@@ -1,31 +1,42 @@
 package bot
 
 import (
+	"errors"
 	"strconv"
 
 	gdax "github.com/preichenberger/go-gdax"
 )
 
-func GetAccount(client *gdax.Client, currency string) *gdax.Account {
+func GetAccount(client *gdax.Client, currency string) (*gdax.Account, error) {
 
-	accounts, _ := client.GetAccounts()
+	accounts, err := client.GetAccounts()
+
+	if err != nil {
+		return nil, err
+	}
 
 	for _, a := range accounts {
 
 		if a.Currency == currency {
-			return &a
+			return &a, nil
 		}
 	}
 
-	return nil
+	return nil, errors.New("Strange behaviour")
 
 }
 
-func GetBalance(client *gdax.Client, currency string) float64 {
+func GetBalance(client *gdax.Client, currency string) (float64, error) {
 
-	account := GetAccount(client, currency)
+	account, err := GetAccount(client, currency)
 
-	accountBalance, _ := strconv.ParseFloat(account.Balance, 64)
+	if err != nil {
 
-	return accountBalance
+		accountBalance, _ := strconv.ParseFloat(account.Balance, 64)
+
+		return accountBalance, nil
+
+	} else {
+		return 0.0, err
+	}
 }

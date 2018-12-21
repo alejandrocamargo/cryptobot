@@ -18,16 +18,13 @@ func main() {
 
 	var order *gdax.Order
 	client := setUp()
-	isTrade := false
 	bearCount := 0
-
-	lastPrice := 0.0
+	lastPrice := bot.GetPrice().Price
 	orderID := ""
 
 	// Look for open order an show warning
 	if bot.ListOrders(client) {
-		entry := bot.GetPrice()
-		log.Println("1 BTC = " + fmt.Sprintf("%f", entry.Price))
+		log.Println("1 BTC = " + fmt.Sprintf("%f", lastPrice))
 		log.Println("Waiting 10 seconds to start!")
 		time.Sleep(10 * time.Second)
 	}
@@ -37,7 +34,7 @@ func main() {
 		lastPrice = bot.ParseFloat(os.Args[1])
 		orderID = os.Args[2]
 
-		order, isTrade = refreshOrder(order, orderID, client)
+		order = refreshOrder(order, orderID, client)
 
 		log.Print("Initialization:  lastPrice --> " + os.Args[1] + " orderID --> " + os.Args[2])
 	} else {
@@ -58,10 +55,10 @@ func main() {
 		//Get BTC price
 		entry := bot.GetPrice()
 
-		if !isTrade {
+		if order == nil || order.Side == "sell" {
 
-			// Only buy if the sell order has been executed or its the first time
-			if lastPrice == 0.0 || order.Settled == true {
+			// Only buy if the sell order has been executed or there is no order at all
+			if order == nil || order.Settled == true {
 
 				//Buy!
 				if entry.Price > lastPrice {
@@ -73,13 +70,11 @@ func main() {
 					order = bot.BuyOrderBTC(entry.Price-5, positionBTC, client)
 
 					orderID = order.Id
-
-					isTrade = true
 				}
 
 			}
 
-		} else {
+		} else if order.Side == "buy" {
 
 			// Only sell if the buy order has been executed
 			if order.Settled == true {
@@ -96,9 +91,9 @@ func main() {
 						// if current BTC price is bigger than order price, sell at current price
 						if entry.Price > bot.ParseFloat(order.Price) {
 
-							order = bot.SellOrderBTC(entry.Price+0.5, balanceBTC, client)
+							order = bot.SellOrderBTC(entry.Price+1, balanceBTC, client)
 
-							//if current BTC price is lower than order price, sell at order price
+						//if current BTC price is lower than order price, sell at order price
 						} else {
 
 							order = bot.SellOrderBTC(bot.ParseFloat(order.Price), balanceBTC, client)
@@ -106,8 +101,6 @@ func main() {
 						}
 
 						orderID = order.Id
-
-						isTrade = false
 
 						bearCount = 0
 					}
@@ -121,7 +114,7 @@ func main() {
 
 		}
 
-		order, isTrade = refreshOrder(order, orderID, client)
+		order = refreshOrder(order, orderID, client)
 
 		lastPrice = entry.Price
 
@@ -159,18 +152,27 @@ func getBalances(client *gdax.Client) (balanceEUR float64, balanceBTC float64, e
 
 }
 
-func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) (*gdax.Order, bool) {
+func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) (*gdax.Order) {
 
-	// Refresh order
-	orderP, err := bot.GetOrder(orderID, client)
+	if order != nil {
 
-	// re-assign only if no problem
-	if err == nil {
-		order = orderP
+		// Refresh order
+		orderP, err := bot.GetOrder(orderID, client)
+
+		// re-assign only if no problem
+		if err == nil {
+			order = orderP
+		}
+
+		log.Println("Order " + order.Type + ": " + orderID + " --- Status: " + order.Status + " --- Price: " + order.Price + "€ ---- Seetled? " + fmt.Sprintf("%t", order.Settled))
+
+		return order
+
+	} else {
+
+		log.Println("No order placed.")
+
+		return nil
 	}
-
-	log.Println("Order " + order.Type + ": " + orderID + " --- Status: " + order.Status + " --- Price: " + order.Price + "€ ---- Seetled? " + fmt.Sprintf("%t", order.Settled))
-
-	return order, !order.Settled
 
 }

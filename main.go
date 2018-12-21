@@ -34,7 +34,7 @@ func main() {
 		lastPrice = bot.ParseFloat(os.Args[1])
 		orderID = os.Args[2]
 
-		order = refreshOrder(order, orderID, client)
+		order, _ = bot.GetOrder(orderID, client)
 
 		log.Print("Initialization:  lastPrice --> " + os.Args[1] + " orderID --> " + os.Args[2])
 	} else {
@@ -93,7 +93,7 @@ func main() {
 
 							order = bot.SellOrderBTC(entry.Price+1, balanceBTC, client)
 
-						//if current BTC price is lower than order price, sell at order price
+							//if current BTC price is lower than order price, sell at order price
 						} else {
 
 							order = bot.SellOrderBTC(bot.ParseFloat(order.Price), balanceBTC, client)
@@ -152,7 +152,7 @@ func getBalances(client *gdax.Client) (balanceEUR float64, balanceBTC float64, e
 
 }
 
-func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) (*gdax.Order) {
+func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) *gdax.Order {
 
 	if order != nil {
 

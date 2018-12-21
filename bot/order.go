@@ -1,178 +1,102 @@
-package main
+package bot
 
 import (
-	"errors"
 	"fmt"
 	"log"
-	"os"
-	"time"
-
-	bot "bot/bot"
+	"strconv"
 
 	gdax "github.com/preichenberger/go-gdax"
 )
 
-//https://api-public.sandbox.pro.coinbase.com
+func CalculateBTCPosition(btcPrice float64, moneyAvailable float64) float64 {
 
-func main() {
+	return moneyAvailable / btcPrice
+}
 
-	var order *gdax.Order
-	client := setUp()
-	bearCount := 0
-	lastPrice := bot.GetPrice().Price
-	orderID := ""
+/* Places  limit order */
+func BuyOrderBTC(price float64, btc float64, client *gdax.Client) *gdax.Order {
 
-	// Look for open order an show warning
-	if bot.ListOrders(client) {
-		log.Println("1 BTC = " + fmt.Sprintf("%f", lastPrice))
-		log.Println("Waiting 10 seconds to start!")
-		time.Sleep(10 * time.Second)
+	priceStr := fmt.Sprintf("%f", price)
+	btcStr := fmt.Sprintf("%f", btc)
+
+	log.Println("Placing BUY order: " + btcStr + " BTC at " + priceStr + " €")
+
+	order := gdax.Order{
+		Price:     priceStr,
+		Size:      btcStr,
+		Side:      "buy",
+		ProductId: "BTC-EUR",
 	}
 
-	// Check arguments the command itself it's one
-	if len(os.Args) > 1 {
-		lastPrice = bot.ParseFloat(os.Args[1])
-		orderID = os.Args[2]
+	savedOrder, err := client.CreateOrder(&order)
 
-		order = refreshOrder(order, orderID, client)
-
-		log.Print("Initialization:  lastPrice --> " + os.Args[1] + " orderID --> " + os.Args[2])
-	} else {
-		log.Print("No initialization block")
+	if err != nil {
+		println(err.Error())
 	}
 
-	for true {
+	return &savedOrder
+}
 
-		//Get balances
-		balanceEUR, balanceBTC, err := getBalances(client)
+func SellOrderBTC(price float64, btc float64, client *gdax.Client) *gdax.Order {
 
-		if err != nil {
-			log.Fatal(err)
-			time.Sleep(10 * time.Second)
-			continue
-		}
+	priceStr := fmt.Sprintf("%f", price)
+	btcStr := fmt.Sprintf("%f", btc)
 
-		//Get BTC price
-		entry := bot.GetPrice()
+	log.Println("Placing SELL order: " + btcStr + " BTC at " + priceStr + " €")
 
-		if order == nil || order.Side == "sell" {
-
-			// Only buy if the sell order has been executed or there is no order at all
-			if order == nil || order.Settled == true {
-
-				//Buy!
-				if entry.Price > lastPrice {
-
-					// Calculate position
-					positionBTC := bot.CalculateBTCPosition(entry.Price, balanceEUR-10)
-
-					//Place order limited, 5€ cheaper
-					order = bot.BuyOrderBTC(entry.Price-5, positionBTC, client)
-
-					orderID = order.Id
-				}
-
-			}
-
-		} else if order.Side == "buy" {
-
-			// Only sell if the buy order has been executed
-			if order.Settled == true {
-
-				//Sell if it goes down two times in a row
-				if entry.Price < lastPrice {
-
-					bearCount++
-
-					log.Println("BearCount: " + fmt.Sprintf("%d", bearCount))
-
-					if bearCount == 2 {
-
-						// if current BTC price is bigger than order price, sell at current price
-						if entry.Price > bot.ParseFloat(order.Price) {
-
-							order = bot.SellOrderBTC(entry.Price+1, balanceBTC, client)
-
-						//if current BTC price is lower than order price, sell at order price
-						} else {
-
-							order = bot.SellOrderBTC(bot.ParseFloat(order.Price), balanceBTC, client)
-
-						}
-
-						orderID = order.Id
-
-						bearCount = 0
-					}
-
-				} else if entry.Price == lastPrice {
-					//same price, do nothing
-				} else {
-					bearCount = 0
-				}
-			}
-
-		}
-
-		order = refreshOrder(order, orderID, client)
-
-		lastPrice = entry.Price
-
-		time.Sleep(60 * time.Second)
-
+	order := gdax.Order{
+		Price:     priceStr,
+		Size:      btcStr,
+		Side:      "sell",
+		ProductId: "BTC-EUR",
 	}
+
+	savedOrder, err := client.CreateOrder(&order)
+
+	if err != nil {
+		println(err.Error())
+	}
+
+	return &savedOrder
+}
+
+func GetOrder(id string, client *gdax.Client) (orderP *gdax.Order, err error) {
+
+	order, err := client.GetOrder(id)
+
+	if err != nil {
+		return
+	}
+
+	return &order, nil
 
 }
 
-func setUp() *gdax.Client {
+func ParseFloat(value string) float64 {
 
-	client := gdax.NewClient(secret, key, passphrase)
-	//client.BaseURL = "https://api-public.sandbox.pro.coinbase.com"
-	client.BaseURL = "https://api.pro.coinbase.com"
+	ret, _ := strconv.ParseFloat(value, 64)
 
-	return client
+	return ret
 }
 
-func getBalances(client *gdax.Client) (balanceEUR float64, balanceBTC float64, err error) {
+func ListOrders(client *gdax.Client) bool {
 
-	balanceEUR, err1 := bot.GetBalance(client, "EUR")
-	balanceBTC, err2 := bot.GetBalance(client, "BTC")
+	var orders []gdax.Order
 
-	if err1 != nil || err2 != nil {
+	found := false
 
-		return 0.0, 0.0, errors.New("Cannot retrieve balances!")
+	cursor := client.ListOrders(gdax.ListOrdersParams{Status: "open", ProductId: "BTC-EUR"})
 
-	} else {
+	for cursor.HasMore {
 
-		log.Println("EUR € " + fmt.Sprintf("%f", balanceEUR) + " --- BTC " + fmt.Sprintf("%f", balanceBTC))
+		cursor.NextPage(&orders)
 
-		return balanceEUR, balanceBTC, nil
-
-	}
-
-}
-
-func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) (*gdax.Order) {
-
-	if order != nil {
-
-		// Refresh order
-		orderP, err := bot.GetOrder(orderID, client)
-
-		// re-assign only if no problem
-		if err == nil {
-			order = orderP
+		for _, o := range orders {
+			log.Println("Order found: " + o.Id)
+			found = true
 		}
-
-		log.Println("Order " + order.Type + ": " + orderID + " --- Status: " + order.Status + " --- Price: " + order.Price + "€ ---- Seetled? " + fmt.Sprintf("%t", order.Settled))
-
-		return order
-
-	} else {
-
-		log.Println("No order placed.")
-
-		return nil
 	}
+
+	return found
 
 }

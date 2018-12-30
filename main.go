@@ -41,7 +41,7 @@ func main() {
 		log.Print("No initialization block")
 	}
 
-	for true {
+	for {
 
 		//Get balances
 		balanceEUR, balanceBTC, err := getBalances(client)

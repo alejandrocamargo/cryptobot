@@ -19,7 +19,15 @@ func main() {
 	var order *gdax.Order
 	client := setUp()
 	bearCount := 0
-	lastPrice := bot.GetPrice().Price
+
+	entry, err := bot.GetPrice()
+
+	if err != nil {
+		log.Fatal("Cannot get init BTC price!")
+	}
+
+	lastPrice := entry.Price
+
 	orderID := ""
 
 	// Look for open order an show warning
@@ -41,7 +49,7 @@ func main() {
 		log.Print("No initialization block")
 	}
 
-	for {
+	for true {
 
 		//Get balances
 		balanceEUR, balanceBTC, err := getBalances(client)
@@ -53,7 +61,12 @@ func main() {
 		}
 
 		//Get BTC price
-		entry := bot.GetPrice()
+		entry, err := bot.GetPrice()
+
+		if err != nil {
+			log.Fatal("Cannot get BTC price!")
+			continue
+		}
 
 		if order == nil || order.Side == "sell" {
 
@@ -114,7 +127,11 @@ func main() {
 
 		}
 
-		order = refreshOrder(order, orderID, client)
+		order, err = refreshOrder(order, orderID, client)
+
+		if err != nil {
+			log.Fatal("Could not refresh order")
+		}
 
 		lastPrice = entry.Price
 
@@ -152,7 +169,7 @@ func getBalances(client *gdax.Client) (balanceEUR float64, balanceBTC float64, e
 
 }
 
-func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) *gdax.Order {
+func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) (*gdax.Order, error) {
 
 	if order != nil {
 
@@ -161,18 +178,23 @@ func refreshOrder(order *gdax.Order, orderID string, client *gdax.Client) *gdax.
 
 		// re-assign only if no problem
 		if err == nil {
+
 			order = orderP
+
+		} else {
+
+			return order, err
 		}
 
-		log.Println("Order " + order.Type + ": " + orderID + " --- Status: " + order.Status + " --- Price: " + order.Price + "€ ---- Seetled? " + fmt.Sprintf("%t", order.Settled))
+		log.Println("Order " + order.Type + " ( " + order.Side + " ) : " + orderID + " --- Status: " + order.Status + " --- Price: " + order.Price + "€ ---- Seetled? " + fmt.Sprintf("%t", order.Settled))
 
-		return order
+		return order, nil
 
 	} else {
 
 		log.Println("No order placed.")
 
-		return nil
+		return nil, nil
 	}
 
 }

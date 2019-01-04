@@ -8,15 +8,22 @@ import (
 	"net/http"
 )
 
-func GetPrice() Data {
+func GetPrice() (Data, error) {
 
-	response, _ := http.Get("https://api.pro.coinbase.com/products/BTC-EUR/ticker")
+	response, err := http.Get("https://api.pro.coinbase.com/products/BTC-EUR/ticker")
+
+	if err != nil {
+
+		var data Data
+		return data, err
+
+	}
 
 	//response, _ := http.Get("https://api-public.sandbox.pro.coinbase.com/products/BTC-USD/ticker")
 
 	responseData, _ := ioutil.ReadAll(response.Body)
 
-	return unMarshall(responseData)
+	return unMarshall(responseData), nil
 
 }
 

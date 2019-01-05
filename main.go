@@ -23,7 +23,7 @@ func main() {
 	entry, err := bot.GetPrice()
 
 	if err != nil {
-		log.Fatal("Cannot get init BTC price!")
+		log.Println("Cannot get init BTC price!")
 	}
 
 	lastPrice := entry.Price
@@ -44,9 +44,9 @@ func main() {
 
 		order, _ = bot.GetOrder(orderID, client)
 
-		log.Print("Initialization:  lastPrice --> " + os.Args[1] + " orderID --> " + os.Args[2])
+		log.Println("Initialization:  lastPrice --> " + os.Args[1] + " orderID --> " + os.Args[2])
 	} else {
-		log.Print("No initialization block")
+		log.Println("No initialization block")
 	}
 
 	for true {
@@ -55,7 +55,7 @@ func main() {
 		balanceEUR, balanceBTC, err := getBalances(client)
 
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
@@ -64,7 +64,7 @@ func main() {
 		entry, err := bot.GetPrice()
 
 		if err != nil {
-			log.Fatal("Cannot get BTC price!")
+			log.Println("Cannot get BTC price!")
 			continue
 		}
 
@@ -130,12 +130,12 @@ func main() {
 		order, err = refreshOrder(order, orderID, client)
 
 		if err != nil {
-			log.Fatal("Could not refresh order")
+			log.Println("Could not refresh order")
 		}
 
 		lastPrice = entry.Price
 
-		time.Sleep(60 * time.Second)
+		time.Sleep(30 * time.Second)
 
 	}
 
